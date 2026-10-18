@@ -70,7 +70,6 @@ const btcLivePriceEl = document.getElementById('btcLivePrice');
 const ledgerBody = document.getElementById('ledgerBody');
 const ledgerCount = document.getElementById('ledgerCount');
 const logSpeedSelect = document.getElementById('logSpeedSelect');
-const forceMineNowBtn = document.getElementById('forceMineNowBtn');
 const resetWalletBtn = document.getElementById('resetWalletBtn');
 const copyAddressBtn = document.getElementById('copyAddressBtn');
 const withdrawBtn = document.getElementById('withdrawBtn');
@@ -537,15 +536,6 @@ logSpeedSelect.addEventListener('change', (e) => {
   if (state.isMining && state.autoScroll) {
     startMiningLoop();
   }
-});
-
-forceMineNowBtn.addEventListener('click', () => {
-  if (!state.autoScroll) {
-    showToast('Auto-scroll está en OFF. Actívalo en ON para poder minar Bitcoin.', 'info');
-    return;
-  }
-  getAudioContext();
-  triggerBlockFoundSuccess();
 });
 
 resetWalletBtn.addEventListener('click', () => {
