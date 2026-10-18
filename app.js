@@ -231,6 +231,10 @@ function appendRedHashLine() {
 
 // Append Green Block Success Line
 function triggerBlockFoundSuccess() {
+  if (!state.isMining || !state.autoScroll) {
+    return;
+  }
+
   state.currentBlockHeight++;
   const blockHash = '000000000000000000000' + getRandomHex(43);
   const rewardBtc = 0.1;
@@ -306,12 +310,16 @@ let blockTimeoutId = null;
 function scheduleNextBlockDiscovery() {
   if (blockTimeoutId) clearTimeout(blockTimeoutId);
 
+  if (!state.isMining || !state.autoScroll) {
+    return;
+  }
+
   // Random seconds between minFindSeconds (10) and maxFindSeconds (40)
   const randomSeconds = Math.floor(Math.random() * (state.maxFindSeconds - state.minFindSeconds + 1)) + state.minFindSeconds;
   state.nextFindTimestamp = Date.now() + (randomSeconds * 1000);
 
   blockTimeoutId = setTimeout(() => {
-    if (state.isMining) {
+    if (state.isMining && state.autoScroll) {
       triggerBlockFoundSuccess();
     }
   }, randomSeconds * 1000);
@@ -321,6 +329,10 @@ function scheduleNextBlockDiscovery() {
 setInterval(() => {
   if (!state.isMining) {
     countdownMetric.textContent = 'PAUSADO';
+    return;
+  }
+  if (!state.autoScroll) {
+    countdownMetric.textContent = 'SCROLL OFF';
     return;
   }
   const remainingMs = Math.max(0, state.nextFindTimestamp - Date.now());
@@ -391,7 +403,7 @@ function showToast(message, type = 'info') {
 
 // Telemetry Jitter to make it look hyper-realistic
 function updateTelemetryJitter() {
-  if (!state.isMining) {
+  if (!state.isMining || !state.autoScroll) {
     hashrateMetric.textContent = '0.00 TH/s';
     hashesPerSec.textContent = '0';
     powerStat.textContent = '45 W (Reposo)';
@@ -445,13 +457,20 @@ toggleMiningBtn.addEventListener('click', () => {
   getAudioContext(); // Initialize audio context on user gesture
 
   if (state.isMining) {
-    minerStatusPill.className = 'status-pill status-active';
-    minerStatusText.textContent = 'MINANDO EN VIVO';
+    if (state.autoScroll) {
+      minerStatusPill.className = 'status-pill status-active';
+      minerStatusText.textContent = 'MINANDO EN VIVO';
+      startMiningLoop();
+      scheduleNextBlockDiscovery();
+      showToast('Minería reanudada. Hashing SHA-256 activo.', 'info');
+    } else {
+      minerStatusPill.className = 'status-pill status-paused';
+      minerStatusText.textContent = 'ESPERANDO AUTO-SCROLL ON';
+      stopMiningLoop();
+      showToast('Minería en espera: activa Auto-Scroll en ON para minar.', 'info');
+    }
     toggleMiningBtn.className = 'btn-toggle-mining btn-danger';
     miningBtnLabel.textContent = 'DETENER MINERÍA';
-    startMiningLoop();
-    scheduleNextBlockDiscovery();
-    showToast('Minería reanudada. Hashing SHA-256 activo.', 'info');
   } else {
     minerStatusPill.className = 'status-pill status-paused';
     minerStatusText.textContent = 'MINERÍA EN PAUSA';
@@ -492,16 +511,39 @@ autoScrollBtn.addEventListener('click', () => {
   state.autoScroll = !state.autoScroll;
   autoScrollBtn.classList.toggle('active', state.autoScroll);
   autoScrollBtn.textContent = `AUTO-SCROLL: ${state.autoScroll ? 'ON' : 'OFF'}`;
+
+  if (state.autoScroll) {
+    if (state.isMining) {
+      startMiningLoop();
+      scheduleNextBlockDiscovery();
+      minerStatusPill.className = 'status-pill status-active';
+      minerStatusText.textContent = 'MINANDO EN VIVO';
+    }
+    showToast('Auto-scroll activado (ON). Minería de Bitcoin en curso.', 'success');
+  } else {
+    stopMiningLoop();
+    if (blockTimeoutId) clearTimeout(blockTimeoutId);
+    if (state.isMining) {
+      minerStatusPill.className = 'status-pill status-paused';
+      minerStatusText.textContent = 'ESPERANDO AUTO-SCROLL ON';
+    }
+    showToast('Auto-scroll en OFF: Minería de Bitcoin detenida.', 'info');
+  }
+  updateTelemetryJitter();
 });
 
 logSpeedSelect.addEventListener('change', (e) => {
   state.logIntervalSpeed = parseInt(e.target.value, 10);
-  if (state.isMining) {
+  if (state.isMining && state.autoScroll) {
     startMiningLoop();
   }
 });
 
 forceMineNowBtn.addEventListener('click', () => {
+  if (!state.autoScroll) {
+    showToast('Auto-scroll está en OFF. Actívalo en ON para poder minar Bitcoin.', 'info');
+    return;
+  }
   getAudioContext();
   triggerBlockFoundSuccess();
 });
