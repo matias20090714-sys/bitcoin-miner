@@ -10,7 +10,7 @@ const state = {
   alertMode: 'modal', // 'modal' or 'auto'
   logIntervalSpeed: 120, // ms between fake hashes
   totalMinedBtc: 0.0,
-  btcUsdPrice: 94850.00,
+  btcUsdPrice: 81820.00, // 0.1 BTC = $8,182.00 USD
   minedBlocksCount: 0,
   failedHashesCount: 48219,
   baseHashrate: 148.24,
@@ -209,7 +209,7 @@ function appendRedHashLine() {
 function triggerBlockFoundSuccess() {
   state.currentBlockHeight++;
   const blockHash = '000000000000000000000' + getRandomHex(43);
-  const rewardBtc = 1.0;
+  const rewardBtc = 0.1;
   const timeStr = getFormattedTime();
 
   // Green celebratory banner in terminal
@@ -218,12 +218,12 @@ function triggerBlockFoundSuccess() {
   line.innerHTML = `
     <div class="success-header">
       <span>⛏️ ¡¡¡BLOQUE ENCONTRADO Y RESUELTO EXITOSAMENTE!!!</span>
-      <span class="success-reward">+1.00000000 BTC ACREDITADO</span>
+      <span class="success-reward">+0.10000000 BTC ACREDITADO</span>
     </div>
     <div class="success-body">
       <div><strong>BLOQUE:</strong> #${state.currentBlockHeight.toLocaleString()} | <strong>DIFICULTAD:</strong> 84.38 T | <strong>CONFIRMACIONES:</strong> 1/6</div>
       <div><strong>HASH RESUELTO:</strong> ${blockHash}</div>
-      <div><strong>RECOMPENSA DE MINERÍA:</strong> 1.00000000 BTC enviada a <span style="text-decoration: underline;">bc1q4v98a8j8e3q2m7d3kx92pl80wz42eupf6l7k</span></div>
+      <div><strong>RECOMPENSA DE MINERÍA:</strong> 0.10000000 BTC (≈ $8,182.00 USD) enviada a <span style="text-decoration: underline;">bc1q4v98a8j8e3q2m7d3kx92pl80wz42eupf6l7k</span></div>
     </div>
   `;
 
@@ -265,7 +265,7 @@ function triggerBlockFoundSuccess() {
   saveState();
 
   // Show Toast
-  showToast(`¡Nuevo Bitcoin minado! +1.00 BTC acreditado a tu billetera`, 'success');
+  showToast(`¡Nuevo Bitcoin minado! +0.10 BTC (~$8,182 USD) acreditados`, 'success');
 
   // Trigger modal display only if alertMode is 'modal'
   if (state.alertMode === 'modal') {

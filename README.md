@@ -13,7 +13,7 @@ Un simulador visual interactivo de minería de Bitcoin con estética cyberpunk d
 
 - 🔴 **Terminal de Hashing en Vivo**: Simula intentos continuos de resolución de prueba de trabajo (Proof-of-Work) con hashes SHA-256 en color rojo.
 - 🟢 **Detección de Bloques (Alerta Verde)**: Cada 10 a 40 segundos encuentra un bloque exitoso, activando un destello verde esmeralda y una fanfarria sonora generada mediante la Web Audio API.
-- 💰 **Billetera Virtual Integrada**: Incrementa automáticamente el saldo en `+1.00000000 BTC` por bloque encontrado y calcula su equivalencia en USD en tiempo real.
+- 💰 **Billetera Virtual Integrada**: Incrementa automáticamente el saldo en `+0.10000000 BTC` (equivalente a **US$ 8,182**) por bloque encontrado y calcula su valor total en tiempo real.
 - 📊 **Telemetría en Vivo**: Simulación de fluctuaciones de temperatura de chips ASIC, velocidad de ventiladores (RPM), latencia al pool y consumo eléctrico (W).
 - 📜 **Historial de Bloques (Ledger)**: Registro ordenado cronológicamente con altura de bloque, marcas de tiempo y confirmaciones de red (`6/6`).
 - 💾 **Persistencia Local**: Guarda el progreso automáticamente en el `localStorage` del navegador.
