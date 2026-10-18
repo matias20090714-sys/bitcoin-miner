@@ -2,6 +2,30 @@
  * Antminer OS - Real-time Simulated Bitcoin Mining Rig & Wallet
  */
 
+// Verify Active Paid Session from Neon DB
+const sessionStr = localStorage.getItem('miner_user_session');
+if (!sessionStr) {
+  // Redirect to Landing page if not authenticated
+  window.location.href = '/';
+} else {
+  try {
+    const user = JSON.parse(sessionStr);
+    window.addEventListener('DOMContentLoaded', () => {
+      const userDisplayName = document.getElementById('userDisplayName');
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (userDisplayName && user && user.full_name) {
+        userDisplayName.textContent = user.full_name;
+      }
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          localStorage.removeItem('miner_user_session');
+          window.location.href = '/';
+        });
+      }
+    });
+  } catch (e) {}
+}
+
 // State Management
 const state = {
   isMining: true,
