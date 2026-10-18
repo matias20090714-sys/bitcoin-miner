@@ -25,6 +25,7 @@ const btnConfirmTransfer = document.getElementById('btnConfirmTransfer');
 const btnConfirmTransferText = document.getElementById('btnConfirmTransferText');
 const toastContainer = document.getElementById('toastContainer');
 const mpOperationInput = document.getElementById('mpOperationInput');
+const emailLockBadge = document.getElementById('emailLockBadge');
 
 let currentPaymentRef = null;
 
@@ -148,16 +149,44 @@ btnConfirmTransfer.addEventListener('click', async () => {
           failureReason = `El monto abonado ($${p.transaction_amount} ${p.currency_id}) es menor a la licencia requerida ($363 UYU).`;
         }
         else {
-          // Check anti-reuse
+          // Check anti-reuse with Neon DB Cloud (Real-time global Postgres check)
+          let isUsedInNeon = false;
+          try {
+            const neonRes = await fetch('https://ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/sql', {
+              method: 'POST',
+              headers: {
+                'neon-connection-string': 'postgresql://neondb_owner:npg_FYDWxbtn1z7i@ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                query: `SELECT id, registered_user_id, payer_email FROM payments WHERE mp_transaction_id = '${operationId}' OR reference_id = 'MP-REAL-${operationId}'`
+              })
+            });
+            if (neonRes.ok) {
+              const neonData = await neonRes.json();
+              if (neonData.rows && neonData.rows.length > 0 && neonData.rows[0].registered_user_id) {
+                isUsedInNeon = true;
+              }
+            }
+          } catch (nErr) {
+            console.warn('[Neon DB Check Warning]', nErr);
+          }
+
           const usedOps = JSON.parse(localStorage.getItem('used_mp_ops') || '[]');
-          if (usedOps.includes(operationId)) {
-            failureReason = 'Este número de operación ya fue utilizado para registrar otra cuenta.';
+          if (isUsedInNeon || usedOps.includes(operationId)) {
+            failureReason = 'Este número de operación ya fue utilizado para registrar otra cuenta. Cada comprobante es de uso único y no se puede compartir.';
           } else {
+            let payerEmail = null;
+            if (p.payer && p.payer.email) {
+              payerEmail = p.payer.email.toLowerCase();
+            }
+
             paymentVerified = true;
             paymentData = {
               reference_id: `MP-REAL-${operationId}`,
               amount: p.transaction_amount,
               currency: p.currency_id,
+              payer_email: payerEmail,
               date_approved: p.date_approved
             };
           }
@@ -178,6 +207,17 @@ btnConfirmTransfer.addEventListener('click', async () => {
       // POP UP MANDATORY CARTEL TO REGISTER ACCOUNT
       setTimeout(() => {
         regPaymentRef.value = currentPaymentRef;
+        if (paymentData.payer_email) {
+          regEmail.value = paymentData.payer_email;
+          regEmail.readOnly = true;
+          regEmail.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
+          regEmail.style.borderColor = '#10b981';
+          regEmail.title = '🔒 Correo verificado por Mercado Pago (no modificable para evitar fraudes)';
+          if (emailLockBadge) emailLockBadge.style.display = 'flex';
+        } else {
+          regEmail.readOnly = false;
+          if (emailLockBadge) emailLockBadge.style.display = 'none';
+        }
         mandatoryRegisterModal.classList.add('active');
         if (regFullName) regFullName.focus();
       }, 500);
@@ -212,6 +252,14 @@ registerForm.addEventListener('submit', async (e) => {
     payment_reference: currentPaymentRef
   };
 
+  // Anti-fraud: Verify email match with Mercado Pago buyer email
+  if (paymentData && paymentData.payer_email && payload.email !== paymentData.payer_email.toLowerCase()) {
+    btnSubmitRegister.disabled = false;
+    btnSubmitRegister.textContent = 'Activar Licencia y Entrar al Minador 🚀';
+    showToast(`El correo ingresado no coincide con el correo verificado de Mercado Pago (${paymentData.payer_email}).`, false);
+    return;
+  }
+
   try {
     let registeredUser = null;
     let errorMsg = null;
@@ -234,8 +282,25 @@ registerForm.addEventListener('submit', async (e) => {
     }
 
     if (!registeredUser && !errorMsg) {
-      // Save used operation to prevent replay
       const opId = currentPaymentRef.replace('MP-REAL-', '');
+
+      // Burn the operation ID in Neon PostgreSQL so no one else in the world can reuse it
+      try {
+        await fetch('https://ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/sql', {
+          method: 'POST',
+          headers: {
+            'neon-connection-string': 'postgresql://neondb_owner:npg_FYDWxbtn1z7i@ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 363.00, 'UYU', 'approved', 'mercadopago_link', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
+          })
+        });
+      } catch (neonErr) {
+        console.warn('[Neon DB Save Warning]', neonErr);
+      }
+
+      // Save used operation to prevent local replay
       const usedOps = JSON.parse(localStorage.getItem('used_mp_ops') || '[]');
       if (!usedOps.includes(opId)) {
         usedOps.push(opId);

@@ -137,13 +137,15 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
 
     const referenceId = `MP-REF-${cleanOpId}`;
 
+    const payerEmail = paymentDetail.payer && paymentDetail.payer.email ? paymentDetail.payer.email.toLowerCase() : (payer_email ? payer_email.toLowerCase() : null);
+
     // 3. Upsert into Neon DB payments table
     await pool.query(
       `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, approved_at)
        VALUES ($1, $2, $3, 'USD', 'approved', 'mercadopago_link', $4, CURRENT_TIMESTAMP)
        ON CONFLICT (reference_id) 
-       DO UPDATE SET status = 'approved', approved_at = CURRENT_TIMESTAMP`,
-      [referenceId, payer_email || null, PRICE_USD, cleanOpId]
+       DO UPDATE SET status = 'approved', approved_at = CURRENT_TIMESTAMP, payer_email = $2`,
+      [referenceId, payerEmail, PRICE_USD, cleanOpId]
     );
 
     res.json({
@@ -151,6 +153,7 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
       message: '✅ ¡Pago con dinero real verificado y aceptado con el OK de Mercado Pago!',
       reference_id: referenceId,
       operation_id: cleanOpId,
+      payer_email: payerEmail,
       amount_usd: PRICE_USD
     });
   } catch (err) {
@@ -199,7 +202,14 @@ app.post('/api/auth/register', async (req, res) => {
 
     if (payment.registered_user_id) {
       return res.status(400).json({
-        error: 'Esta operación de Mercado Pago ya fue utilizada por otra cuenta.'
+        error: 'Esta operación de Mercado Pago ya fue utilizada para registrar otra cuenta.'
+      });
+    }
+
+    // Verify email match with Mercado Pago buyer email
+    if (payment.payer_email && cleanEmail !== payment.payer_email.toLowerCase()) {
+      return res.status(403).json({
+        error: `Este pago corresponde a la cuenta de Mercado Pago (${payment.payer_email}). Solo ese correo está autorizado para crear esta cuenta.`
       });
     }
 
