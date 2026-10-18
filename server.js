@@ -17,9 +17,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static assets
-app.use(express.static(path.join(__dirname)));
-
 // Root route: Single Slide Landing Page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'landing.html'));
@@ -29,6 +26,9 @@ app.get('/', (req, res) => {
 app.get('/miner', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// Serve static assets (disable index.html auto-serving for /)
+app.use(express.static(path.join(__dirname), { index: false }));
 
 // API: Stats and Price config for Landing Page
 app.get('/api/stats', async (req, res) => {
