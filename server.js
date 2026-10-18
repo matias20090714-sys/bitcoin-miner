@@ -85,39 +85,47 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
     let isApprovedByApi = false;
     let paymentDetail = null;
 
-    // 2. If Mercado Pago Access Token is configured in environment, verify with Mercado Pago API
-    if (process.env.MP_ACCESS_TOKEN) {
-      try {
-        console.log(`🔍 Verificando operación ${cleanOpId} en la API oficial de Mercado Pago...`);
-        const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${cleanOpId}`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.MP_ACCESS_TOKEN}`
-          }
-        });
+    const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
+    const EXPECTED_COLLECTOR_ID = 132459287; // Fernanda L
 
-        if (mpRes.ok) {
-          paymentDetail = await mpRes.json();
-          if (paymentDetail.status === 'approved') {
-            isApprovedByApi = true;
-            console.log(`✅ Pago ${cleanOpId} APROBADO por Mercado Pago API ($${paymentDetail.transaction_amount} ${paymentDetail.currency_id})`);
-          } else {
-            return res.status(400).json({
-              error: `Mercado Pago indica que esta operación no está aprobada. Estado actual: ${paymentDetail.status}`
-            });
-          }
-        } else {
-          const errData = await mpRes.json();
-          console.warn('Respuesta API Mercado Pago:', errData);
+    // 2. Query official Mercado Pago API
+    try {
+      console.log(`🔍 Verificando operación ${cleanOpId} en la API oficial de Mercado Pago...`);
+      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${cleanOpId}`, {
+        headers: {
+          'Authorization': `Bearer ${MP_ACCESS_TOKEN}`
+        }
+      });
+
+      if (mpRes.ok) {
+        paymentDetail = await mpRes.json();
+        if (paymentDetail.status !== 'approved') {
           return res.status(400).json({
-            error: 'No se encontró una transacción válida con ese ID en los registros de Mercado Pago.'
+            error: `Mercado Pago indica que esta operación no está acreditada. Estado actual: ${paymentDetail.status}`
           });
         }
-      } catch (apiErr) {
-        console.error('Error al consultar API Mercado Pago:', apiErr);
+        if (paymentDetail.collector_id !== EXPECTED_COLLECTOR_ID) {
+          return res.status(403).json({
+            error: 'Este pago no fue transferido a la cuenta oficial de Fernanda L.'
+          });
+        }
+        if (paymentDetail.transaction_amount < 363) {
+          return res.status(400).json({
+            error: `El monto pagado ($${paymentDetail.transaction_amount} ${paymentDetail.currency_id}) es menor a los $363 UYU requeridos.`
+          });
+        }
+
+        isApprovedByApi = true;
+        console.log(`✅ Pago real ${cleanOpId} CONFIRMADO y recibido en la cuenta de Fernanda L.`);
+      } else {
+        return res.status(404).json({
+          error: 'Número de operación NO encontrado en Mercado Pago. Debes pagar con dinero real a través del enlace oficial.'
+        });
       }
-    } else {
-      return res.status(403).json({
-        error: 'Para evitar fraudes o códigos inventados, se requiere el Access Token oficial de Mercado Pago para validar cada pago en tiempo real.'
+    } catch (apiErr) {
+      console.error('Error al consultar API Mercado Pago:', apiErr);
+      return res.status(500).json({
+        error: 'Error al conectar con los servidores oficiales de Mercado Pago.'
       });
     }
 
