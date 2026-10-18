@@ -35,17 +35,17 @@ const EXPECTED_COLLECTOR_ID = 132459287;
 const EXPECTED_MIN_AMOUNT_UYU = 363.00;
 const MINER_URL = 'miner.html';
 
-// Check existing session
+// Check existing session: Automatically keep user logged in and redirect to miner
 window.addEventListener('DOMContentLoaded', () => {
+  if (window.location.search.includes('logout=1')) {
+    return;
+  }
   const sessionStr = localStorage.getItem('miner_user_session');
   if (sessionStr) {
     try {
       const user = JSON.parse(sessionStr);
-      if (user && user.email) {
-        openLoginBtn.textContent = `👤 ${user.full_name ? user.full_name.split(' ')[0] : 'Minador'} (Entrar)`;
-        openLoginBtn.onclick = () => {
-          window.location.href = MINER_URL;
-        };
+      if (user && (user.email || user.full_name)) {
+        window.location.replace(MINER_URL);
       }
     } catch (e) {}
   }

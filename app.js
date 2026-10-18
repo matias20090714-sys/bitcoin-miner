@@ -19,7 +19,7 @@ if (!sessionStr) {
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
           localStorage.removeItem('miner_user_session');
-          window.location.href = './';
+          window.location.href = './?logout=1';
         });
       }
     });
