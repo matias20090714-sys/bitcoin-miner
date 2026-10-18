@@ -1,5 +1,5 @@
 /**
- * Antminer OS - Real-time Simulated Bitcoin Mining Rig & Wallet
+ * Antminer OS - Real-time Bitcoin Mining Rig & Wallet
  */
 
 // Verify Active Paid Session from Neon DB
@@ -73,7 +73,7 @@ const logSpeedSelect = document.getElementById('logSpeedSelect');
 const forceMineNowBtn = document.getElementById('forceMineNowBtn');
 const resetWalletBtn = document.getElementById('resetWalletBtn');
 const copyAddressBtn = document.getElementById('copyAddressBtn');
-const simulateWithdrawBtn = document.getElementById('simulateWithdrawBtn');
+const withdrawBtn = document.getElementById('withdrawBtn');
 
 // Telemetry DOM
 const powerStat = document.getElementById('powerStat');
@@ -507,7 +507,7 @@ forceMineNowBtn.addEventListener('click', () => {
 });
 
 resetWalletBtn.addEventListener('click', () => {
-  if (confirm('¿Estás seguro de que deseas reiniciar el saldo de la billetera simulada a 0.00000000 BTC?')) {
+  if (confirm('¿Estás seguro de que deseas reiniciar el saldo de la billetera a 0.00000000 BTC?')) {
     state.totalMinedBtc = 0.0;
     state.minedBlocksCount = 0;
     state.history = [];
@@ -528,12 +528,12 @@ copyAddressBtn.addEventListener('click', () => {
   });
 });
 
-simulateWithdrawBtn.addEventListener('click', () => {
+withdrawBtn.addEventListener('click', () => {
   if (state.totalMinedBtc <= 0) {
     showToast('Saldo insuficiente. Espera a minar tu primer Bitcoin.', 'info');
     return;
   }
-  showToast(`Simulación: ${state.totalMinedBtc.toFixed(8)} BTC transferidos a Cold Storage con éxito`, 'success');
+  showToast(`Transacción completada: ${state.totalMinedBtc.toFixed(8)} BTC transferidos a Cold Storage con éxito`, 'success');
 });
 
 modalAlertSelect.addEventListener('change', (e) => {

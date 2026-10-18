@@ -703,7 +703,7 @@ html, body {
   background: var(--mp-blue);
 }
 
-/* Transfer Simulation & Live Verification */
+/* Transfer & Live Verification */
 .transfer-action-box {
   display: flex;
   flex-direction: column;

@@ -22,9 +22,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'landing.html'));
 });
 
-// Protected Miner Simulator route
+// Protected Miner route
 app.get('/miner', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'miner.html'));
 });
 
 // Serve static assets (disable index.html auto-serving for /)
@@ -86,7 +86,7 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
     let paymentDetail = null;
 
     const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
-    const EXPECTED_COLLECTOR_ID = 132459287; // Fernanda L
+    const EXPECTED_COLLECTOR_ID = 132459287;
 
     // 2. Query official Mercado Pago API
     try {
@@ -106,7 +106,7 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
         }
         if (paymentDetail.collector_id !== EXPECTED_COLLECTOR_ID) {
           return res.status(403).json({
-            error: 'Este pago no fue transferido a la cuenta oficial de Fernanda L.'
+            error: 'Este comprobante no corresponde al cobro oficial de la licencia.'
           });
         }
         if (paymentDetail.transaction_amount < 363) {
@@ -116,7 +116,7 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
         }
 
         isApprovedByApi = true;
-        console.log(`✅ Pago real ${cleanOpId} CONFIRMADO y recibido en la cuenta de Fernanda L.`);
+        console.log(`✅ Pago oficial ${cleanOpId} CONFIRMADO y verificado por Mercado Pago.`);
       } else {
         return res.status(404).json({
           error: 'Número de operación NO encontrado en Mercado Pago. Debes pagar con dinero real a través del enlace oficial.'

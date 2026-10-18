@@ -29,9 +29,9 @@ const emailLockBadge = document.getElementById('emailLockBadge');
 
 let currentPaymentRef = null;
 
-// Official Mercado Pago Seller Details (Fernanda L)
+// Official Mercado Pago Configuration
 const MP_TOKEN = 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
-const EXPECTED_COLLECTOR_ID = 132459287; // Fernanda L
+const EXPECTED_COLLECTOR_ID = 132459287;
 const EXPECTED_MIN_AMOUNT_UYU = 363.00;
 const MINER_URL = 'miner.html';
 
@@ -68,7 +68,7 @@ function showToast(msg, isSuccess = true) {
 openCheckoutBtn.addEventListener('click', () => {
   checkoutModal.classList.add('active');
   btnConfirmTransfer.disabled = false;
-  btnConfirmTransferText.textContent = 'Verificar Pago Real y Crear Cuenta';
+  btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
   if (mpOperationInput) {
     mpOperationInput.focus();
   }
@@ -95,7 +95,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
   }
 
   btnConfirmTransfer.disabled = true;
-  btnConfirmTransferText.textContent = '⏳ Consultando a los servidores oficiales de Mercado Pago...';
+  btnConfirmTransferText.textContent = '⏳ Verificando comprobante con Mercado Pago...';
 
   try {
     let paymentVerified = false;
@@ -138,11 +138,11 @@ btnConfirmTransfer.addEventListener('click', async () => {
 
         // 1. Verify status is 'approved'
         if (p.status !== 'approved') {
-          failureReason = `El pago figura como '${p.status}'. Debe estar 'approved' (acreditado) para crear cuenta.`;
+          failureReason = `El pago figura como '${p.status}'. Debe estar 'approved' (acreditado) para activar la licencia.`;
         }
-        // 2. Verify money was sent to Fernanda L's account
+        // 2. Verify money was sent to official collector
         else if (p.collector_id !== EXPECTED_COLLECTOR_ID) {
-          failureReason = 'Este comprobante no corresponde a un pago enviado a la cuenta oficial de Fernanda L.';
+          failureReason = 'Este comprobante no corresponde al cobro oficial de esta licencia.';
         }
         // 3. Verify amount
         else if (p.transaction_amount < EXPECTED_MIN_AMOUNT_UYU) {
@@ -201,7 +201,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
 
     if (paymentVerified && paymentData) {
       currentPaymentRef = paymentData.reference_id;
-      showToast('¡Pago de dinero real ($363 UYU) verificado con éxito en la cuenta de Fernanda L!', true);
+      showToast('¡Pago de $363 UYU verificado con éxito por Mercado Pago!', true);
       checkoutModal.classList.remove('active');
 
       // POP UP MANDATORY CARTEL TO REGISTER ACCOUNT
@@ -223,12 +223,12 @@ btnConfirmTransfer.addEventListener('click', async () => {
       }, 500);
     } else {
       btnConfirmTransfer.disabled = false;
-      btnConfirmTransferText.textContent = 'Verificar Pago Real y Crear Cuenta';
+      btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
       showToast(failureReason || 'Pago no verificado. Solo se permiten pagos reales aprobados por Mercado Pago.', false);
     }
   } catch (err) {
     btnConfirmTransfer.disabled = false;
-    btnConfirmTransferText.textContent = 'Verificar Pago Real y Crear Cuenta';
+    btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
     showToast('Error de conexión al consultar los servidores de Mercado Pago.', false);
   }
 });
