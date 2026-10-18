@@ -6,7 +6,7 @@
 const sessionStr = localStorage.getItem('miner_user_session');
 if (!sessionStr) {
   // Redirect to Landing page if not authenticated
-  window.location.href = '/';
+  window.location.href = './';
 } else {
   try {
     const user = JSON.parse(sessionStr);
@@ -19,7 +19,7 @@ if (!sessionStr) {
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
           localStorage.removeItem('miner_user_session');
-          window.location.href = '/';
+          window.location.href = './';
         });
       }
     });
