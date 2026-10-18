@@ -111,11 +111,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
         errorMsg = data.error;
       }
     } catch (apiErr) {
-      // Fallback if running on static GitHub Pages
-      if (window.location.hostname.includes('github.io') || window.location.protocol === 'file:') {
-        verified = true;
-        paymentRef = `MP-REF-${operationId}`;
-      }
+      errorMsg = 'Error al comunicarse con el servidor de validación de Mercado Pago.';
     }
 
     if (verified && paymentRef) {
@@ -170,15 +166,7 @@ registerForm.addEventListener('submit', async (e) => {
         errorMsg = data.error;
       }
     } catch (apiErr) {
-      // Static host fallback (GitHub Pages)
-      if (window.location.hostname.includes('github.io') || window.location.protocol === 'file:') {
-        registeredUser = {
-          full_name: payload.full_name,
-          email: payload.email,
-          payment_status: 'approved',
-          payment_reference: payload.payment_reference
-        };
-      }
+      errorMsg = 'Error al comunicarse con la base de datos Neon.';
     }
 
     if (registeredUser) {

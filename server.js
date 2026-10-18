@@ -116,9 +116,9 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
         console.error('Error al consultar API Mercado Pago:', apiErr);
       }
     } else {
-      // If token not set yet, validate format and register in Neon DB
-      console.log(`ℹ️ MP_ACCESS_TOKEN no configurado aún en .env. Registrando operación real ${cleanOpId} en Neon DB.`);
-      isApprovedByApi = true;
+      return res.status(403).json({
+        error: 'Para evitar fraudes o códigos inventados, se requiere el Access Token oficial de Mercado Pago para validar cada pago en tiempo real.'
+      });
     }
 
     if (!isApprovedByApi) {
