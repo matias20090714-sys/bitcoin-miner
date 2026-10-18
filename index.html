@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Antminer S21 Pro - Panel de Minería SHA-256</title>
+  <meta name="description" content="Simulador realista de minería de Bitcoin en tiempo real con consola de hashing, telemetría y billetera virtual.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient background glow effects -->
+  <div class="ambient-glow glow-red" id="ambientRed"></div>
+  <div class="ambient-glow glow-green" id="ambientGreen"></div>
+
+  <div class="app-container">
+    <!-- Top Bar Navigation / Rig Header -->
+    <header class="rig-header">
+      <div class="header-left">
+        <div class="brand-badge">
+          <div class="btc-symbol">₿</div>
+          <div class="brand-text">
+            <span class="rig-title">ANTMINER <strong>OS v4.19</strong></span>
+            <span class="rig-subtitle">SHA-256 ASIC MINING CLUSTER #08</span>
+          </div>
+        </div>
+        <div class="status-pill status-active" id="minerStatusPill">
+          <span class="status-dot"></span>
+          <span id="minerStatusText">MINANDO EN VIVO</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="quick-stat">
+          <span class="stat-label">POOL ACTUAL</span>
+          <span class="stat-value pool-link" id="currentPool">stratum+tcp://btc.antigravity.pool:3333</span>
+        </div>
+        <div class="quick-stat">
+          <span class="stat-label">ALGORITMO</span>
+          <span class="stat-value">SHA-256d</span>
+        </div>
+        <div class="quick-stat">
+          <span class="stat-label">DIFICULTAD</span>
+          <span class="stat-value" id="currentDiff">84.38 T</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button id="fullscreenToggleBtn" class="btn-icon" title="Pantalla Completa">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <span>PANTALLA COMPLETA</span>
+        </button>
+        <button id="audioToggleBtn" class="btn-icon" title="Activar/Desactivar Sonido">
+          <svg id="audioIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <span id="audioStatusText">SONIDO ON</span>
+        </button>
+        <button id="toggleMiningBtn" class="btn-toggle-mining btn-danger">
+          <span class="btn-icon-indicator"></span>
+          <span id="miningBtnLabel">DETENER MINERÍA</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Rig Grid: Console (Left) + Virtual Wallet & Rig Telemetry (Right) -->
+    <main class="main-content">
+      <!-- Left Column: Live Hashing Console & Engine -->
+      <section class="console-section">
+        <div class="panel-card console-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="terminal-dots">
+                <span class="dot dot-r"></span>
+                <span class="dot dot-y"></span>
+                <span class="dot dot-g"></span>
+              </span>
+              <h2 class="panel-title">TERMINAL DE HASHING SHA-256 (CPU/ASIC THREADS)</h2>
+            </div>
+            <div class="console-metrics">
+              <span class="metric-item">
+                <span class="metric-label">TASA DE HASH:</span>
+                <span class="metric-val text-cyan" id="hashrateMetric">148.24 TH/s</span>
+              </span>
+              <span class="metric-item">
+                <span class="metric-label">PRÓXIMO HALLAZGO:</span>
+                <span class="metric-val text-yellow" id="countdownMetric">--s</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Live Visual Log Stream -->
+          <div class="terminal-window" id="terminalWindow">
+            <div class="terminal-scanline"></div>
+            <div class="terminal-content" id="terminalLogs">
+              <!-- Logs will be populated here via JavaScript -->
+            </div>
+          </div>
+
+          <!-- Bottom Console Status & Filter Controls -->
+          <div class="console-footer">
+            <div class="footer-stats">
+              <div class="f-stat"><span class="f-label">Cálculos/seg:</span> <span class="f-val" id="hashesPerSec">148,240,000,000,000</span></div>
+              <div class="f-stat"><span class="f-label">Intentos fallidos:</span> <span class="f-val text-red" id="failedHashesCount">48,219</span></div>
+              <div class="f-stat"><span class="f-label">Bloques minados:</span> <span class="f-val text-green" id="blocksFoundCount">0</span></div>
+            </div>
+            <div class="footer-actions">
+              <button id="clearTerminalBtn" class="btn-mini">LIMPIAR LOGS</button>
+              <button id="autoScrollBtn" class="btn-mini active">AUTO-SCROLL: ON</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Gauges Row -->
+        <div class="telemetry-row">
+          <div class="telemetry-card">
+            <div class="telemetry-icon">⚡</div>
+            <div class="telemetry-info">
+              <div class="telemetry-label">POTENCIA TOTAL</div>
+              <div class="telemetry-value" id="powerStat">3,280 W</div>
+              <div class="telemetry-sub">Eficiencia: 22.1 J/TH</div>
+            </div>
+          </div>
+
+          <div class="telemetry-card">
+            <div class="telemetry-icon">🌡️</div>
+            <div class="telemetry-info">
+              <div class="telemetry-label">TEMP. ASIC CHIPS</div>
+              <div class="telemetry-value text-warning" id="tempStat">68.4 °C</div>
+              <div class="telemetry-sub">Límite seguro: 85.0 °C</div>
+            </div>
+          </div>
+
+          <div class="telemetry-card">
+            <div class="telemetry-icon">🌀</div>
+            <div class="telemetry-info">
+              <div class="telemetry-label">VENTILADORES</div>
+              <div class="telemetry-value" id="fanStat">5,820 RPM</div>
+              <div class="telemetry-sub">Carga: 82% Automático</div>
+            </div>
+          </div>
+
+          <div class="telemetry-card">
+            <div class="telemetry-icon">📶</div>
+            <div class="telemetry-info">
+              <div class="telemetry-label">LATENCIA AL POOL</div>
+              <div class="telemetry-value text-green" id="latencyStat">14 ms</div>
+              <div class="telemetry-sub">Shares aceptados: 100%</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Simulated Virtual Wallet & Mined Blocks History -->
+      <aside class="wallet-section">
+        <!-- Main Wallet Card -->
+        <div class="panel-card wallet-card">
+          <div class="wallet-badge">
+            <span class="badge-icon">🔒</span> BILLETERA BITCOIN SIMULADA (COLD VAULT)
+          </div>
+
+          <div class="wallet-address-box">
+            <div class="address-label">DIRECCIÓN DE PAGO (WALLET ADDRESS)</div>
+            <div class="address-row">
+              <span class="address-hash" id="walletAddress">bc1q4v98a8j8e3q2m7d3kx92pl80wz42eupf6l7k</span>
+              <button id="copyAddressBtn" class="copy-btn" title="Copiar dirección">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="balance-display">
+            <div class="balance-title">TOTAL BITCOIN MINADO</div>
+            <div class="btc-big-amount">
+              <span class="btc-unit">₿</span>
+              <span class="btc-number" id="totalBtcAmount">0.00000000</span>
+            </div>
+            <div class="usd-equivalent">
+              ≈ <span id="totalUsdAmount">$0.00</span> <span class="usd-badge">USD</span>
+              <span class="price-live-ticker" id="btcLivePrice">(@ $94,850 / BTC)</span>
+            </div>
+          </div>
+
+          <div class="wallet-actions">
+            <button id="simulateWithdrawBtn" class="btn-wallet-action btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+              </svg>
+              TRANSFERIR A COLD WALLET
+            </button>
+            <button id="resetWalletBtn" class="btn-wallet-action btn-secondary" title="Reiniciar contador">
+              REINICIAR SALDO
+            </button>
+          </div>
+        </div>
+
+        <!-- Block Rewards / Ledger Section -->
+        <div class="panel-card ledger-card">
+          <div class="panel-header">
+            <h3 class="panel-title-sm">HISTORIAL DE RECOMPENSAS MINADAS</h3>
+            <span class="badge-count" id="ledgerCount">0 BLOQUES</span>
+          </div>
+
+          <div class="ledger-table-container">
+            <table class="ledger-table">
+              <thead>
+                <tr>
+                  <th>HORA</th>
+                  <th>BLOQUE</th>
+                  <th>RECOMPENSA</th>
+                  <th>ESTADO</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerBody">
+                <tr class="empty-row" id="emptyLedgerRow">
+                  <td colspan="4">Esperando el primer bloque minado... (10 a 40 segundos)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Custom Settings / Speed adjustment -->
+        <div class="panel-card settings-card">
+          <div class="panel-header">
+            <h3 class="panel-title-sm">AJUSTES DE SIMULACIÓN</h3>
+          </div>
+          <div class="settings-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-name">Intervalo de Hallazgo</span>
+                <span class="setting-desc">Aleatorio entre 10s y 40s (Personalizable)</span>
+              </div>
+              <div class="interval-badge" id="intervalDisplay">10s - 40s</div>
+            </div>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-name">Aviso al Encontrar Bitcoin</span>
+                <span class="setting-desc">Mostrar ventana emergente o solo aviso en verde</span>
+              </div>
+              <select id="modalAlertSelect" class="cyber-select">
+                <option value="modal" selected>Ventana Modal Emergente</option>
+                <option value="auto">Auto-acreditar (Sin pausar pantalla)</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-name">Velocidad del Log de Hashes</span>
+                <span class="setting-desc">Frecuencia de actualización en pantalla</span>
+              </div>
+              <select id="logSpeedSelect" class="cyber-select">
+                <option value="60">Ultrarrápido (60ms)</option>
+                <option value="120" selected>Normal (120ms)</option>
+                <option value="250">Lento (250ms)</option>
+              </select>
+            </div>
+            <button id="forceMineNowBtn" class="btn-force-find">
+              ⚡ FORZAR HALLAZGO DE 1 BITCOIN AHORA
+            </button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Found Bitcoin Celebration Overlay/Banner Modal -->
+  <div class="modal-overlay" id="rewardModal">
+    <div class="modal-card">
+      <div class="modal-glow-bg"></div>
+      <div class="modal-header">
+        <div class="modal-badge">¡BLOQUE RESUELTO CON ÉXITO!</div>
+        <div class="modal-close" id="closeModalBtn">&times;</div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-icon-ring">
+          <span class="btc-modal-icon">₿</span>
+        </div>
+        <h2 class="modal-title">+1.00000000 BTC</h2>
+        <div class="modal-usd-val" id="modalUsdVal">+ $94,850.00 USD acreditados</div>
+        <div class="modal-details">
+          <div class="m-detail-row">
+            <span>Bloque:</span>
+            <strong id="modalBlockHeight">#891,420</strong>
+          </div>
+          <div class="m-detail-row">
+            <span>Hash:</span>
+            <code id="modalBlockHash">00000000000000000002b8a74e9f...</code>
+          </div>
+          <div class="m-detail-row">
+            <span>Destino:</span>
+            <code>bc1q4v98a8j8e3q2m7d3kx92pl80wz42eupf6l7k</code>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modalClaimBtn" class="btn-modal-action">ACREDITAR A BILLETERA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
