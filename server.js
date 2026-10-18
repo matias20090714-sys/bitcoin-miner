@@ -313,9 +313,13 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Start Server & DB init
-app.listen(PORT, async () => {
-  console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
-  console.log(`💳 Link oficial de Mercado Pago: ${MP_PAYMENT_LINK} ($${PRICE_UYU} UYU / $${PRICE_USD} USD)`);
-  await initDatabase();
-});
+// Start Server & DB init (local daemon or Vercel serverless)
+if (require.main === module) {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
+    console.log(`💳 Link oficial de Mercado Pago: ${MP_PAYMENT_LINK} ($${PRICE_UYU} UYU / $${PRICE_USD} USD)`);
+    await initDatabase();
+  });
+}
+
+module.exports = app;
