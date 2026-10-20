@@ -32,7 +32,7 @@ let currentPaymentRef = null;
 // Official Mercado Pago Configuration
 const MP_TOKEN = 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
 const EXPECTED_COLLECTOR_ID = 132459287;
-const EXPECTED_MIN_AMOUNT_UYU = 363.00;
+const EXPECTED_MIN_AMOUNT_USD = 8.00;
 const MINER_URL = 'miner.html';
 
 // Check existing session: Automatically keep user logged in and redirect to miner
@@ -145,8 +145,8 @@ btnConfirmTransfer.addEventListener('click', async () => {
           failureReason = 'Este comprobante no corresponde al cobro oficial de esta licencia.';
         }
         // 3. Verify amount
-        else if (p.transaction_amount < EXPECTED_MIN_AMOUNT_UYU) {
-          failureReason = `El monto abonado ($${p.transaction_amount} ${p.currency_id}) es menor a la licencia requerida ($363 UYU).`;
+        else if ((p.currency_id === 'UYU' ? p.transaction_amount < 350 : p.transaction_amount < EXPECTED_MIN_AMOUNT_USD)) {
+          failureReason = `El monto abonado ($${p.transaction_amount} ${p.currency_id}) es menor a la licencia requerida ($8.99 USD).`;
         }
         else {
           // Check anti-reuse with Neon DB Cloud (Real-time global Postgres check)
@@ -192,7 +192,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
           }
         }
       } else if (mpRes.status === 404) {
-        failureReason = 'Operación NO encontrada en Mercado Pago. Asegúrate de haber completado el pago de $363 UYU antes de verificar.';
+        failureReason = 'Operación NO encontrada en Mercado Pago. Asegúrate de haber completado el pago de $8.99 USD antes de verificar.';
       } else {
         const errJson = await mpRes.json().catch(() => ({}));
         failureReason = errJson.message || 'No se pudo validar la transacción con Mercado Pago.';
@@ -201,7 +201,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
 
     if (paymentVerified && paymentData) {
       currentPaymentRef = paymentData.reference_id;
-      showToast('¡Pago de $363 UYU verificado con éxito por Mercado Pago!', true);
+      showToast('¡Pago de $8.99 USD verificado con éxito por Mercado Pago!', true);
       checkoutModal.classList.remove('active');
 
       // POP UP MANDATORY CARTEL TO REGISTER ACCOUNT
@@ -293,7 +293,7 @@ registerForm.addEventListener('submit', async (e) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 363.00, 'UYU', 'approved', 'mercadopago_link', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
+            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 8.99, 'USD', 'approved', 'mercadopago_link', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
           })
         });
       } catch (neonErr) {

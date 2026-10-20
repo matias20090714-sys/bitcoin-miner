@@ -1040,7 +1040,7 @@ html, body {
           </div>
 
           <div style="font-size: 0.76rem; color: #94a3b8; margin-top: -0.3rem;">
-            Cobro en tu moneda local vía Mercado Pago: <strong>$363 UYU (Pesos Uruguayos)</strong>
+            Cobro procesado vía Mercado Pago: <strong>$8.99 USD</strong>
           </div>
 
           <!-- Mercado Pago Official Styled Button -->
@@ -1104,14 +1104,14 @@ html, body {
         <div class="mp-header-icon">🤝</div>
         <div class="mp-header-text">
           <h3>Pagar con Mercado Pago</h3>
-          <span>Link Oficial &bull; $363 UYU (~$8.99 USD)</span>
+          <span>Link Oficial &bull; $8.99 USD</span>
         </div>
       </div>
 
       <div class="transfer-info-card">
         <div class="info-item-row">
           <span class="info-label">Monto de la Licencia:</span>
-          <span class="info-value" style="color: #009ee3; font-size: 1.15rem;">$8.99 USD <small style="font-size: 0.8rem; color: #94a3b8;">($363 UYU)</small></span>
+          <span class="info-value" style="color: #009ee3; font-size: 1.15rem;">$8.99 USD</span>
         </div>
         <div class="info-item-row">
           <span class="info-label">Canal Autorizado:</span>
@@ -1127,7 +1127,7 @@ html, body {
         <!-- Step 1: Open real MP Link -->
         <a id="btnOpenMpLink" href="https://mpago.la/1xzd2eM" target="_blank" rel="noopener noreferrer" class="btn-mercado-pago" style="text-decoration: none; padding: 0.85rem; font-size: 0.95rem; margin-bottom: 0.4rem;">
           <svg class="mp-handshake-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-          <span>1. ABRIR CHECKOUT MERCADO PAGO ($363 UYU) ↗</span>
+          <span>1. ABRIR CHECKOUT MERCADO PAGO ($8.99 USD) ↗</span>
         </a>
 
         <!-- Step 2: Validate real receipt ID -->
@@ -1276,7 +1276,7 @@ let currentPaymentRef = null;
 // Official Mercado Pago Configuration
 const MP_TOKEN = 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
 const EXPECTED_COLLECTOR_ID = 132459287;
-const EXPECTED_MIN_AMOUNT_UYU = 363.00;
+const EXPECTED_MIN_AMOUNT_USD = 8.00;
 const MINER_URL = 'miner.html';
 
 // Check existing session: Automatically keep user logged in and redirect to miner
@@ -1389,8 +1389,8 @@ btnConfirmTransfer.addEventListener('click', async () => {
           failureReason = 'Este comprobante no corresponde al cobro oficial de esta licencia.';
         }
         // 3. Verify amount
-        else if (p.transaction_amount < EXPECTED_MIN_AMOUNT_UYU) {
-          failureReason = `El monto abonado (${p.transaction_amount} ${p.currency_id}) es menor a la licencia requerida ($363 UYU).`;
+        else if ((p.currency_id === 'UYU' ? p.transaction_amount < 350 : p.transaction_amount < EXPECTED_MIN_AMOUNT_USD)) {
+          failureReason = `El monto abonado (${p.transaction_amount} ${p.currency_id}) es menor a la licencia requerida ($8.99 USD).`;
         }
         else {
           // Check anti-reuse with Neon DB Cloud (Real-time global Postgres check)
@@ -1436,7 +1436,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
           }
         }
       } else if (mpRes.status === 404) {
-        failureReason = 'Operación NO encontrada en Mercado Pago. Asegúrate de haber completado el pago de $363 UYU antes de verificar.';
+        failureReason = 'Operación NO encontrada en Mercado Pago. Asegúrate de haber completado el pago de $8.99 USD antes de verificar.';
       } else {
         const errJson = await mpRes.json().catch(() => ({}));
         failureReason = errJson.message || 'No se pudo validar la transacción con Mercado Pago.';
@@ -1445,7 +1445,7 @@ btnConfirmTransfer.addEventListener('click', async () => {
 
     if (paymentVerified && paymentData) {
       currentPaymentRef = paymentData.reference_id;
-      showToast('¡Pago de $363 UYU verificado con éxito por Mercado Pago!', true);
+      showToast('¡Pago de $8.99 USD verificado con éxito por Mercado Pago!', true);
       checkoutModal.classList.remove('active');
 
       // POP UP MANDATORY CARTEL TO REGISTER ACCOUNT
@@ -1537,7 +1537,7 @@ registerForm.addEventListener('submit', async (e) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 363.00, 'UYU', 'approved', 'mercadopago_link', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
+            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 8.99, 'USD', 'approved', 'mercadopago_link', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
           })
         });
       } catch (neonErr) {

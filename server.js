@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 3000;
 // Mercado Pago Payment Configuration
 const MP_PAYMENT_LINK = 'https://mpago.la/1xzd2eM';
 const PRICE_USD = 8.99;
-const PRICE_UYU = 363.00;
 
 app.use(cors());
 app.use(express.json());
@@ -40,7 +39,6 @@ app.get('/api/stats', async (req, res) => {
       totalUsers,
       btcPriceUsd: 81820.00,
       priceUsd: PRICE_USD,
-      priceUyu: PRICE_UYU,
       paymentLink: MP_PAYMENT_LINK,
       networkHashrate: '148.24 TH/s',
       networkStatus: 'ONLINE'
@@ -109,9 +107,12 @@ app.post('/api/payment/verify-mp-payment', async (req, res) => {
             error: 'Este comprobante no corresponde al cobro oficial de la licencia.'
           });
         }
-        if (paymentDetail.transaction_amount < 363) {
+        const isValidAmount = (paymentDetail.currency_id === 'UYU' && paymentDetail.transaction_amount >= 350) ||
+                              (paymentDetail.currency_id === 'USD' && paymentDetail.transaction_amount >= 8.00) ||
+                              paymentDetail.transaction_amount >= 8.00;
+        if (!isValidAmount) {
           return res.status(400).json({
-            error: `El monto pagado ($${paymentDetail.transaction_amount} ${paymentDetail.currency_id}) es menor a los $363 UYU requeridos.`
+            error: `El monto pagado ($${paymentDetail.transaction_amount} ${paymentDetail.currency_id}) es menor a la licencia requerida ($${PRICE_USD} USD).`
           });
         }
 
@@ -317,7 +318,7 @@ app.post('/api/auth/login', async (req, res) => {
 if (require.main === module) {
   app.listen(PORT, async () => {
     console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
-    console.log(`💳 Link oficial de Mercado Pago: ${MP_PAYMENT_LINK} ($${PRICE_UYU} UYU / $${PRICE_USD} USD)`);
+    console.log(`💳 Link oficial de Mercado Pago: ${MP_PAYMENT_LINK} ($${PRICE_USD} USD)`);
     await initDatabase();
   });
 }
