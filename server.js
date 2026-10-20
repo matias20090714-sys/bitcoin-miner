@@ -26,7 +26,8 @@ app.get('/miner', (req, res) => {
   res.sendFile(path.join(__dirname, 'miner.html'));
 });
 
-// Serve static assets (disable index.html auto-serving for /)
+// Serve static assets from public/ and root
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use(express.static(path.join(__dirname), { index: false }));
 
 // API: Stats and Price config for Landing Page

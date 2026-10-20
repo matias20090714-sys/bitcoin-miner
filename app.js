@@ -2,8 +2,13 @@
  * Antminer OS - Real-time Bitcoin Mining Rig & Wallet
  */
 
+// Safe storage helpers (immune to private-mode SecurityErrors)
+function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function safeRemove(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
 // Ensure Active Paid Owner Session so miner always runs directly without login wall
-let sessionStr = localStorage.getItem('miner_user_session');
+let sessionStr = safeGet('miner_user_session');
 if (!sessionStr) {
   const defaultOwner = {
     full_name: 'matias',
@@ -11,7 +16,7 @@ if (!sessionStr) {
     payment_status: 'approved',
     payment_reference: 'MP-OWNER-VIP'
   };
-  localStorage.setItem('miner_user_session', JSON.stringify(defaultOwner));
+  safeSet('miner_user_session', JSON.stringify(defaultOwner));
   sessionStr = JSON.stringify(defaultOwner);
 }
 
@@ -25,7 +30,7 @@ try {
     }
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('miner_user_session');
+        safeRemove('miner_user_session');
         window.location.reload();
       });
     }
@@ -170,7 +175,7 @@ function formatUSD(amount) {
 // Local Storage handling
 function loadSavedState() {
   try {
-    const saved = localStorage.getItem('btc_miner_sim_data');
+    const saved = safeGet('btc_miner_sim_data');
     if (saved) {
       const data = JSON.parse(saved);
       if (typeof data.totalMinedBtc === 'number') state.totalMinedBtc = data.totalMinedBtc;
@@ -193,7 +198,7 @@ function saveState() {
       history: state.history.slice(0, 50),
       currentBlockHeight: state.currentBlockHeight
     };
-    localStorage.setItem('btc_miner_sim_data', JSON.stringify(data));
+    safeSet('btc_miner_sim_data', JSON.stringify(data));
   } catch (e) {
     console.error("Could not save to local storage", e);
   }
@@ -609,22 +614,31 @@ document.addEventListener('keydown', (e) => {
 closeModalBtn.addEventListener('click', hideRewardModal);
 modalClaimBtn.addEventListener('click', hideRewardModal);
 
-// Initial Launch
-loadSavedState();
-startMiningLoop();
-scheduleNextBlockDiscovery();
-updateTelemetryJitter();
+// Initial Launch function
+function initMinerApp() {
+  loadSavedState();
+  startMiningLoop();
+  scheduleNextBlockDiscovery();
+  updateTelemetryJitter();
 
-// Initial welcome log message in terminal
-terminalLogs.innerHTML = `
-  <div class="log-line log-info">
-    <span class="log-time">[${getFormattedTime()}]</span>
-    <span class="log-tag">INIT</span>
-    <span>Antminer S21 Pro OS conectado a stratum+tcp://btc.antigravity.pool:3333</span>
-  </div>
-  <div class="log-line log-info">
-    <span class="log-time">[${getFormattedTime()}]</span>
-    <span class="log-tag">TARGET</span>
-    <span>Dificultad objetivo establecida en 84.38T. Esperando prueba de trabajo (PoW)...</span>
-  </div>
-`;
+  if (terminalLogs) {
+    terminalLogs.innerHTML = `
+      <div class="log-line log-info">
+        <span class="log-time">[${getFormattedTime()}]</span>
+        <span class="log-tag">INIT</span>
+        <span>Antminer S21 Pro OS conectado a stratum+tcp://btc.antigravity.pool:3333</span>
+      </div>
+      <div class="log-line log-info">
+        <span class="log-time">[${getFormattedTime()}]</span>
+        <span class="log-tag">TARGET</span>
+        <span>Dificultad objetivo establecida en 84.38T. Minería SHA-256 activa...</span>
+      </div>
+    `;
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initMinerApp);
+} else {
+  initMinerApp();
+}
