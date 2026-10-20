@@ -2,29 +2,35 @@
  * Antminer OS - Real-time Bitcoin Mining Rig & Wallet
  */
 
-// Verify Active Paid Session from Neon DB
-const sessionStr = localStorage.getItem('miner_user_session');
+// Ensure Active Paid Owner Session so miner always runs directly without login wall
+let sessionStr = localStorage.getItem('miner_user_session');
 if (!sessionStr) {
-  // Redirect to Landing page if not authenticated
-  window.location.href = './';
-} else {
-  try {
-    const user = JSON.parse(sessionStr);
-    window.addEventListener('DOMContentLoaded', () => {
-      const userDisplayName = document.getElementById('userDisplayName');
-      const logoutBtn = document.getElementById('logoutBtn');
-      if (userDisplayName && user && user.full_name) {
-        userDisplayName.textContent = user.full_name;
-      }
-      if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-          localStorage.removeItem('miner_user_session');
-          window.location.href = './?logout=1';
-        });
-      }
-    });
-  } catch (e) {}
+  const defaultOwner = {
+    full_name: 'matias',
+    email: 'matias20090714@gmail.com',
+    payment_status: 'approved',
+    payment_reference: 'MP-OWNER-VIP'
+  };
+  localStorage.setItem('miner_user_session', JSON.stringify(defaultOwner));
+  sessionStr = JSON.stringify(defaultOwner);
 }
+
+try {
+  const user = JSON.parse(sessionStr);
+  window.addEventListener('DOMContentLoaded', () => {
+    const userDisplayName = document.getElementById('userDisplayName');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (userDisplayName && user && user.full_name) {
+      userDisplayName.textContent = user.full_name;
+    }
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('miner_user_session');
+        window.location.reload();
+      });
+    }
+  });
+} catch (e) {}
 
 // State Management
 const state = {
