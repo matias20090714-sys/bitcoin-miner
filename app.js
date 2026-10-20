@@ -29,9 +29,11 @@ try {
       userDisplayName.textContent = user.full_name;
     }
     if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         safeRemove('miner_user_session');
-        window.location.reload();
+        window.location.href = 'landing.html?logout=1';
       });
     }
   });

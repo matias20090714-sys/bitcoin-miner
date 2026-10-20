@@ -108,12 +108,13 @@ body.found-block-flash .glow-green {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
   background: var(--bg-card);
   backdrop-filter: blur(16px);
   border: 1px solid var(--bg-card-border);
   border-radius: var(--border-radius);
-  padding: 14px 24px;
+  padding: 14px 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
@@ -240,7 +241,8 @@ body.found-block-flash .glow-green {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-icon {
@@ -1246,6 +1248,12 @@ body.found-block-flash .glow-green {
 }
 
 /* Responsive adjustments */
+@media (max-width: 1250px) {
+  .header-center {
+    display: none;
+  }
+}
+
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 1fr;
@@ -1256,12 +1264,44 @@ body.found-block-flash .glow-green {
 }
 
 @media (max-width: 768px) {
+  .app-container {
+    padding: 10px 12px 24px;
+    gap: 14px;
+  }
   .rig-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .header-left {
+    justify-content: space-between;
+    width: 100%;
   }
   .header-center {
     display: none;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .header-right .btn-icon span {
+    display: none;
+  }
+  .btn-icon {
+    padding: 8px 10px;
+  }
+  .user-license-pill {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .btn-toggle-mining {
+    flex: 1 1 100%;
+    justify-content: center;
+    order: 4;
+    padding: 10px;
   }
   .telemetry-row {
     grid-template-columns: 1fr;
@@ -1604,9 +1644,11 @@ try {
       userDisplayName.textContent = user.full_name;
     }
     if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         safeRemove('miner_user_session');
-        window.location.reload();
+        window.location.href = 'landing.html?logout=1';
       });
     }
   });
