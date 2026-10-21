@@ -1339,12 +1339,11 @@ window.addEventListener('DOMContentLoaded', initPayPalHostedButton);
 openCheckoutBtn.addEventListener('click', () => {
   checkoutModal.classList.add('active');
   btnConfirmTransfer.disabled = false;
-  initPayPalHostedButton();
-});
   btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
   if (mpOperationInput) {
     mpOperationInput.focus();
   }
+  initPayPalHostedButton();
 });
 
 closeCheckoutBtn.addEventListener('click', () => {
