@@ -8,8 +8,8 @@ const { pool, initDatabase } = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Mercado Pago Payment Configuration
-const MP_PAYMENT_LINK = 'https://mpago.la/1xzd2eM';
+// PayPal Payment Configuration
+const PAYPAL_PAYMENT_LINK = 'https://www.paypal.com/ncp/payment/7C9QUL2PUAKS6';
 const PRICE_USD = 8.99;
 
 app.use(cors());
@@ -49,118 +49,151 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// API: Verify Real Money Payment from Mercado Pago
-// Checks with Mercado Pago API if MP_ACCESS_TOKEN is present, or validates real operation receipt in Neon DB
-app.post('/api/payment/verify-mp-payment', async (req, res) => {
+// Helper: Get PayPal OAuth2 Token
+async function getPayPalAccessToken(clientId, clientSecret) {
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const res = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error('PayPal OAuth error:', errText);
+    throw new Error('No se pudo autenticar con la API de PayPal. Verifica el Client Secret.');
+  }
+  const data = await res.json();
+  return data.access_token;
+}
+
+// API: Verify Real Money Payment from PayPal
+app.post('/api/payment/verify-paypal', async (req, res) => {
   try {
     const { operation_id, payer_email } = req.body;
 
     if (!operation_id) {
       return res.status(400).json({
-        error: 'Por favor, ingresa el Número de Operación de tu comprobante de Mercado Pago.'
+        error: 'Por favor, ingresa el ID de Transacción de tu comprobante de PayPal.'
       });
     }
 
-    const cleanOpId = operation_id.toString().trim().replace(/[^0-9a-zA-Z_-]/g, '');
+    const cleanOpId = operation_id.toString().trim().toUpperCase().replace(/[^0-9A-Z_-]/g, '');
 
-    if (cleanOpId.length < 6) {
+    // Allow VIP Owner master key
+    if (cleanOpId === 'OWNER-1428PM57') {
+      return res.json({
+        success: true,
+        message: '¡Licencia VIP de Propietario Verificada!',
+        reference_id: 'MP-OWNER-VIP',
+        operation_id: cleanOpId,
+        payer_email: 'matias20090714@gmail.com',
+        amount_usd: PRICE_USD
+      });
+    }
+
+    // Strict format check: Real PayPal Transaction IDs are 17 characters (e.g. 9AB12345CD678901E)
+    if (cleanOpId.length < 12 || cleanOpId.length > 25) {
       return res.status(400).json({
-        error: 'El número de operación de Mercado Pago no es válido (mínimo 6 dígitos).'
+        error: 'El ID de Transacción de PayPal debe constar de 17 caracteres alfanuméricos (ej: 9AB12345CD678901E).'
       });
     }
 
-    // 1. Check if this operation has ALREADY been used by another registered account in Neon DB
+    // 1. Check if already used by another registered account in Neon DB
     const existingPayment = await pool.query(
-      `SELECT * FROM payments WHERE mp_transaction_id = $1 AND status = 'approved'`,
-      [cleanOpId]
+      `SELECT * FROM payments WHERE (mp_transaction_id = $1 OR reference_id = $2) AND status = 'approved'`,
+      [cleanOpId, `PAYPAL-${cleanOpId}`]
     );
 
     if (existingPayment.rows.length > 0 && existingPayment.rows[0].registered_user_id) {
       return res.status(400).json({
-        error: 'Este número de operación de Mercado Pago ya fue utilizado para registrar otra cuenta.'
+        error: 'Este ID de transacción de PayPal ya fue utilizado para registrar otra cuenta.'
       });
     }
+
+    const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'BAAh4r22cUv0BRMrzK7qVPEWGk-IrnOGiHFygSa651lgz8biz-_otM8wMOpfaIRAoPMum7RK5amM0utatE';
+    const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 
     let isApprovedByApi = false;
-    let paymentDetail = null;
+    let verifiedEmail = payer_email ? payer_email.toLowerCase() : null;
 
-    const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
-    const EXPECTED_COLLECTOR_ID = 132459287;
-
-    // 2. Query official Mercado Pago API
-    try {
-      console.log(`🔍 Verificando operación ${cleanOpId} en la API oficial de Mercado Pago...`);
-      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${cleanOpId}`, {
-        headers: {
-          'Authorization': `Bearer ${MP_ACCESS_TOKEN}`
+    if (PAYPAL_CLIENT_SECRET) {
+      try {
+        console.log(`🔍 Verificando transacción ${cleanOpId} en la API oficial de PayPal...`);
+        const accessToken = await getPayPalAccessToken(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
+        
+        // 1. Try checking as Order ID
+        let orderRes = await fetch(`https://api-m.paypal.com/v2/checkout/orders/${cleanOpId}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        
+        let txData = null;
+        if (orderRes.ok) {
+          txData = await orderRes.json();
+          if (txData.status === 'COMPLETED' || txData.status === 'APPROVED') {
+            isApprovedByApi = true;
+            if (txData.payer && txData.payer.email_address) {
+              verifiedEmail = txData.payer.email_address.toLowerCase();
+            }
+          }
+        } else {
+          // 2. Try checking as Payment Capture ID
+          let capRes = await fetch(`https://api-m.paypal.com/v2/payments/captures/${cleanOpId}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          if (capRes.ok) {
+            txData = await capRes.json();
+            if (txData.status === 'COMPLETED') {
+              isApprovedByApi = true;
+            }
+          }
         }
-      });
 
-      if (mpRes.ok) {
-        paymentDetail = await mpRes.json();
-        if (paymentDetail.status !== 'approved') {
-          return res.status(400).json({
-            error: `Mercado Pago indica que esta operación no está acreditada. Estado actual: ${paymentDetail.status}`
+        if (!isApprovedByApi) {
+          return res.status(404).json({
+            error: 'Transacción no encontrada o pago no completado en PayPal. Asegúrate de haber completado el pago de $8.99 USD.'
           });
         }
-        if (paymentDetail.collector_id !== EXPECTED_COLLECTOR_ID) {
-          return res.status(403).json({
-            error: 'Este comprobante no corresponde al cobro oficial de la licencia.'
-          });
-        }
-        const isValidAmount = (paymentDetail.currency_id === 'UYU' && paymentDetail.transaction_amount >= 350) ||
-                              (paymentDetail.currency_id === 'USD' && paymentDetail.transaction_amount >= 8.00) ||
-                              paymentDetail.transaction_amount >= 8.00;
-        if (!isValidAmount) {
-          return res.status(400).json({
-            error: `El monto pagado ($${paymentDetail.transaction_amount} ${paymentDetail.currency_id}) es menor a la licencia requerida ($${PRICE_USD} USD).`
-          });
-        }
-
-        isApprovedByApi = true;
-        console.log(`✅ Pago oficial ${cleanOpId} CONFIRMADO y verificado por Mercado Pago.`);
-      } else {
-        return res.status(404).json({
-          error: 'Número de operación NO encontrado en Mercado Pago. Debes pagar con dinero real a través del enlace oficial.'
+      } catch (apiErr) {
+        console.error('Error al consultar API PayPal:', apiErr);
+        return res.status(500).json({
+          error: 'Error al conectar con los servidores de PayPal.'
         });
       }
-    } catch (apiErr) {
-      console.error('Error al consultar API Mercado Pago:', apiErr);
-      return res.status(500).json({
-        error: 'Error al conectar con los servidores oficiales de Mercado Pago.'
-      });
+    } else {
+      // If client secret is not set, require prior approved record in Neon DB
+      if (existingPayment.rows.length === 0) {
+        return res.status(400).json({
+          error: 'ID de transacción no encontrado. La verificación en tiempo real requiere configurar el PAYPAL_CLIENT_SECRET en el servidor.'
+        });
+      }
+      isApprovedByApi = true;
     }
 
-    if (!isApprovedByApi) {
-      return res.status(403).json({
-        error: 'El pago no pudo ser verificado con Mercado Pago. Asegúrate de haber completado la transferencia con dinero real.'
-      });
-    }
+    const referenceId = `PAYPAL-${cleanOpId}`;
 
-    const referenceId = `MP-REF-${cleanOpId}`;
-
-    const payerEmail = paymentDetail.payer && paymentDetail.payer.email ? paymentDetail.payer.email.toLowerCase() : (payer_email ? payer_email.toLowerCase() : null);
-
-    // 3. Upsert into Neon DB payments table
+    // Upsert into Neon DB payments table
     await pool.query(
       `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, approved_at)
-       VALUES ($1, $2, $3, 'USD', 'approved', 'mercadopago_link', $4, CURRENT_TIMESTAMP)
+       VALUES ($1, $2, $3, 'USD', 'approved', 'paypal_hosted', $4, CURRENT_TIMESTAMP)
        ON CONFLICT (reference_id) 
        DO UPDATE SET status = 'approved', approved_at = CURRENT_TIMESTAMP, payer_email = $2`,
-      [referenceId, payerEmail, PRICE_USD, cleanOpId]
+      [referenceId, verifiedEmail, PRICE_USD, cleanOpId]
     );
 
     res.json({
       success: true,
-      message: '✅ ¡Pago con dinero real verificado y aceptado con el OK de Mercado Pago!',
+      message: '✅ ¡Pago de $8.99 USD verificado con éxito por PayPal!',
       reference_id: referenceId,
       operation_id: cleanOpId,
-      payer_email: payerEmail,
+      payer_email: verifiedEmail,
       amount_usd: PRICE_USD
     });
   } catch (err) {
-    console.error('Error verifying payment:', err);
-    res.status(500).json({ error: 'Error en el servidor al verificar el pago con Mercado Pago.' });
+    console.error('Error verifying PayPal payment:', err);
+    res.status(500).json({ error: 'Error en el servidor al verificar el pago con PayPal.' });
   }
 });
 

@@ -139,54 +139,118 @@ btnConfirmTransfer.addEventListener('click', async () => {
     return;
   }
 
-  if (operationId.length < 5) {
-    showToast('El ID de transacción es demasiado corto para ser un comprobante de PayPal.', false);
+  // Master VIP bypass
+  const isMasterKey = (operationId === 'OWNER-1428PM57');
+
+  // Real PayPal transaction IDs are strictly 17 alphanumeric characters (e.g. 9AB12345CD678901E)
+  const isPayPalFormat = /^[A-Z0-9]{17}$/.test(operationId);
+
+  if (!isMasterKey && !isPayPalFormat) {
+    showToast('Formato inválido. El ID de Transacción de PayPal consta de exactamente 17 caracteres alfanuméricos (ej: 9AB12345CD678901E). No se aceptan IDs de prueba ni palabras aleatorias.', false);
+    if (mpOperationInput) mpOperationInput.focus();
     return;
   }
 
   btnConfirmTransfer.disabled = true;
-  btnConfirmTransferText.textContent = '⏳ Verificando transacción de PayPal...';
+  btnConfirmTransferText.textContent = '⏳ Verificando transacción con PayPal...';
 
   setTimeout(async () => {
     try {
-      // Check anti-reuse with Neon DB Cloud
-      let isUsedInNeon = false;
+      // 1. Try real-time verification with backend server if available
+      let verifiedByServer = false;
+      let serverError = null;
+      let buyerEmail = null;
+
       try {
-        const neonRes = await fetch('https://ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/sql', {
+        const verifyRes = await fetch('/api/payment/verify-paypal', {
           method: 'POST',
-          headers: {
-            'neon-connection-string': 'postgresql://neondb_owner:npg_FYDWxbtn1z7i@ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            query: `SELECT id, registered_user_id, payer_email FROM payments WHERE mp_transaction_id = '${operationId}' OR reference_id = 'PAYPAL-${operationId}'`
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ operation_id: operationId })
         });
-        if (neonRes.ok) {
-          const neonData = await neonRes.json();
-          if (neonData.rows && neonData.rows.length > 0 && neonData.rows[0].registered_user_id) {
-            isUsedInNeon = true;
+        if (verifyRes.ok) {
+          const vData = await verifyRes.json();
+          if (vData.success) {
+            verifiedByServer = true;
+            buyerEmail = vData.payer_email;
           }
+        } else {
+          const errData = await verifyRes.json();
+          serverError = errData.error || 'Transacción no verificada por PayPal.';
         }
-      } catch (nErr) {
-        console.warn('[Neon DB Check Warning]', nErr);
+      } catch (e) {
+        // Static host fallback (e.g. GitHub Pages without local API)
       }
 
-      const usedOps = JSON.parse(localStorage.getItem('used_mp_ops') || '[]');
-      if (isUsedInNeon || usedOps.includes(operationId)) {
+      if (serverError) {
         btnConfirmTransfer.disabled = false;
         btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
-        showToast('Este ID de transacción de PayPal ya fue utilizado para registrar otra cuenta.', false);
+        showToast(serverError, false);
         return;
       }
 
-      currentPaymentRef = `PAYPAL-${operationId}`;
+      // 2. Database validation (Anti-reuse and confirmed whitelist check)
+      let isApprovedInDb = false;
+      let isAlreadyUsed = false;
+
+      if (!verifiedByServer) {
+        try {
+          const neonRes = await fetch('https://ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/sql', {
+            method: 'POST',
+            headers: {
+              'neon-connection-string': 'postgresql://neondb_owner:npg_FYDWxbtn1z7i@ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: `SELECT id, registered_user_id, payer_email, status FROM payments WHERE mp_transaction_id = '${operationId}' OR reference_id = 'PAYPAL-${operationId}'`
+            })
+          });
+          if (neonRes.ok) {
+            const neonData = await neonRes.json();
+            if (neonData.rows && neonData.rows.length > 0) {
+              const row = neonData.rows[0];
+              if (row.registered_user_id) {
+                isAlreadyUsed = true;
+              } else if (row.status === 'approved') {
+                isApprovedInDb = true;
+                buyerEmail = row.payer_email;
+              }
+            }
+          }
+        } catch (nErr) {
+          console.warn('[Neon DB Check Warning]', nErr);
+        }
+
+        const usedOps = JSON.parse(localStorage.getItem('used_mp_ops') || '[]');
+        if (isAlreadyUsed || usedOps.includes(operationId)) {
+          btnConfirmTransfer.disabled = false;
+          btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
+          showToast('Este ID de transacción de PayPal ya fue utilizado para registrar otra cuenta.', false);
+          return;
+        }
+
+        // If not master key, not verified by server, and not in approved DB:
+        if (!isMasterKey && !isApprovedInDb) {
+          btnConfirmTransfer.disabled = false;
+          btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
+          showToast('Transacción no encontrada o pago no acreditado en PayPal. Asegúrate de haber completado el pago de $8.99 USD antes de verificar.', false);
+          return;
+        }
+      }
+
+      currentPaymentRef = isMasterKey ? 'MP-OWNER-VIP' : `PAYPAL-${operationId}`;
+      if (buyerEmail) {
+        paymentData = { payer_email: buyerEmail };
+      }
+
       showToast('¡Pago de $8.99 USD verificado con éxito por PayPal!', true);
       checkoutModal.classList.remove('active');
 
       // POP UP MANDATORY CARTEL TO REGISTER ACCOUNT
       setTimeout(() => {
         regPaymentRef.value = currentPaymentRef;
+        if (buyerEmail && regEmail) {
+          regEmail.value = buyerEmail;
+        }
         mandatoryRegisterModal.classList.add('active');
         if (regFullName) regFullName.focus();
       }, 500);
