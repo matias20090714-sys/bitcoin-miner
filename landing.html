@@ -449,6 +449,65 @@ html, body {
   height: 22px;
 }
 
+.btn-paypal-direct {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  background: linear-gradient(135deg, #0070ba 0%, #003087 100%);
+  color: #ffffff !important;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(0, 112, 186, 0.4);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.btn-paypal-direct:hover {
+  background: linear-gradient(135deg, #0079c1 0%, #003a9b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 112, 186, 0.6);
+  color: #ffffff !important;
+}
+
+.paypal-hosted-wrapper {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  min-height: 50px;
+  display: block;
+}
+
+.paypal-loading-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+#paypal-container-7C9QUL2PUAKS6 {
+  width: 100% !important;
+  max-width: 380px !important;
+  margin: 0 auto !important;
+}
+
+#paypal-container-7C9QUL2PUAKS6 iframe {
+  width: 100% !important;
+}
+
 .payment-assurance-row {
   display: flex;
   align-items: center;
@@ -596,6 +655,8 @@ html, body {
   border-radius: 20px;
   width: 100%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 1.8rem;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
   position: relative;
@@ -1045,12 +1106,18 @@ html, body {
           </div>
 
           <!-- PayPal Official Styled Button -->
-          <button id="openCheckoutBtn" class="btn-paypal" type="button">
+          <button id="openCheckoutBtn" class="btn-paypal" type="button" onclick="openCheckoutModal()">
             <svg class="paypal-svg" viewBox="0 0 24 24" fill="currentColor">
               <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.78.78 0 0 1 .77-.643h7.29c3.084 0 5.438.835 6.273 2.924.498 1.246.368 2.808-.432 4.093-.762 1.225-2.035 2.072-3.791 2.518 1.947.464 3.125 1.763 2.805 3.905-.386 2.585-2.585 4.82-6.529 4.82H7.076zm2.34-8.87h2.247c2.617 0 4.14-.948 4.542-2.82.385-1.796-.867-2.846-3.738-2.846H7.994l-1.42 5.666h2.842zm-1.042 6.55h2.47c2.81 0 4.453-1.02 4.887-3.03.414-1.93-.934-3.06-4.02-3.06H7.054l-1.32 6.09h2.64z"/>
             </svg>
             <span>PAGAR CON PAYPAL ($8.99 USD)</span>
           </button>
+
+          <div style="text-align: center; margin-top: 0.5rem; margin-bottom: 0.2rem;">
+            <a href="https://www.paypal.com/ncp/payment/7C9QUL2PUAKS6" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 0.78rem; text-decoration: underline; font-weight: 600;">
+              O pagar directamente en la pasarela oficial de PayPal.com ↗
+            </a>
+          </div>
 
           <div class="payment-assurance-row">
             <span class="assurance-item">
@@ -1128,12 +1195,27 @@ html, body {
       </div>
 
       <div class="transfer-action-box">
-        <!-- Step 1: PayPal Hosted Button -->
-        <div style="margin-bottom: 0.8rem; text-align: center;">
-          <div style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.6rem;">
-            1. Haz clic en el botón oficial para pagar con PayPal o Tarjeta:
+        <!-- Step 1: PayPal Payment Methods -->
+        <div style="margin-bottom: 0.9rem; text-align: center;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.6rem;">
+            1. Paga con tu saldo de PayPal o Tarjeta de Débito/Crédito:
           </div>
-          <div id="paypal-container-7C9QUL2PUAKS6" style="min-height: 45px; display: flex; justify-content: center;"></div>
+
+          <!-- Direct official PayPal button (100% reliable, opens direct secure PayPal page) -->
+          <a href="https://www.paypal.com/ncp/payment/7C9QUL2PUAKS6" target="_blank" rel="noopener noreferrer" class="btn-paypal-direct" id="directPayPalBtn" style="margin-bottom: 0.7rem;">
+            <svg class="paypal-svg" viewBox="0 0 24 24" fill="currentColor" style="width: 20px; height: 20px;">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.78.78 0 0 1 .77-.643h7.29c3.084 0 5.438.835 6.273 2.924.498 1.246.368 2.808-.432 4.093-.762 1.225-2.035 2.072-3.791 2.518 1.947.464 3.125 1.763 2.805 3.905-.386 2.585-2.585 4.82-6.529 4.82H7.076zm2.34-8.87h2.247c2.617 0 4.14-.948 4.542-2.82.385-1.796-.867-2.846-3.738-2.846H7.994l-1.42 5.666h2.842zm-1.042 6.55h2.47c2.81 0 4.453-1.02 4.887-3.03.414-1.93-.934-3.06-4.02-3.06H7.054l-1.32 6.09h2.64z"/>
+            </svg>
+            <span>Pagar $8.99 USD en PayPal Oficial ↗</span>
+          </a>
+
+          <!-- Embedded Hosted Button container -->
+          <div class="paypal-hosted-wrapper">
+            <div id="paypalLoadingPlaceholder" class="paypal-loading-box">
+              <span>⏳</span><span>Cargando botones interactivos de PayPal...</span>
+            </div>
+            <div id="paypal-container-7C9QUL2PUAKS6"></div>
+          </div>
         </div>
 
         <!-- Step 2: Validate real receipt ID -->
@@ -1279,10 +1361,9 @@ const emailLockBadge = document.getElementById('emailLockBadge');
 
 let currentPaymentRef = null;
 
-// Official Mercado Pago Configuration
-const MP_TOKEN = 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
-const EXPECTED_COLLECTOR_ID = 132459287;
-const EXPECTED_MIN_AMOUNT_USD = 8.00;
+// Official PayPal Configuration
+const PAYPAL_HOSTED_BUTTON_ID = '7C9QUL2PUAKS6';
+const EXPECTED_PRICE_USD = 8.99;
 const MINER_URL = 'miner.html';
 
 // Check existing session: Automatically keep user logged in and redirect to miner
@@ -1317,34 +1398,63 @@ function showToast(msg, isSuccess = true) {
 // Render PayPal Hosted Button
 function initPayPalHostedButton() {
   const container = document.getElementById('paypal-container-7C9QUL2PUAKS6');
-  if (!container || container.dataset.rendered) return;
+  if (!container || container.dataset.rendered === 'true') return;
 
   if (window.paypal && typeof paypal.HostedButtons === 'function') {
     try {
       container.dataset.rendered = 'true';
       paypal.HostedButtons({
         hostedButtonId: "7C9QUL2PUAKS6",
-      }).render("#paypal-container-7C9QUL2PUAKS6");
-      console.log('✅ PayPal Hosted Button renderizado con éxito');
+      }).render("#paypal-container-7C9QUL2PUAKS6").then(() => {
+        const ph = document.getElementById('paypalLoadingPlaceholder');
+        if (ph) ph.style.display = 'none';
+        console.log('✅ PayPal Hosted Button renderizado con éxito');
+      }).catch((err) => {
+        console.warn('PayPal render promise catch:', err);
+        container.dataset.rendered = '';
+        const ph = document.getElementById('paypalLoadingPlaceholder');
+        if (ph) {
+          ph.innerHTML = '<span style="color: #f59e0b;">⚠️ Pulsa el botón azul de arriba para pagar directamente en PayPal.com</span>';
+        }
+      });
     } catch (err) {
-      console.warn('PayPal render error:', err);
+      console.warn('PayPal init error:', err);
+      container.dataset.rendered = '';
     }
   } else {
-    setTimeout(initPayPalHostedButton, 350);
+    if (!window._paypalAttempts) window._paypalAttempts = 0;
+    window._paypalAttempts++;
+    if (window._paypalAttempts < 15) {
+      setTimeout(initPayPalHostedButton, 350);
+    } else {
+      const ph = document.getElementById('paypalLoadingPlaceholder');
+      if (ph) {
+        ph.innerHTML = '<span style="color: #f59e0b;">ℹ️ Pulsa el botón azul de arriba para pagar directamente en PayPal.com</span>';
+      }
+    }
   }
 }
 window.addEventListener('DOMContentLoaded', initPayPalHostedButton);
 
 // 1. Open Checkout Modal
-openCheckoutBtn.addEventListener('click', () => {
-  checkoutModal.classList.add('active');
-  btnConfirmTransfer.disabled = false;
-  btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
-  if (mpOperationInput) {
-    mpOperationInput.focus();
+function openCheckoutModal() {
+  const modal = document.getElementById('checkoutModal');
+  if (modal) {
+    modal.classList.add('active');
   }
+  const btn = document.getElementById('btnConfirmTransfer');
+  if (btn) btn.disabled = false;
+  const btnText = document.getElementById('btnConfirmTransferText');
+  if (btnText) btnText.textContent = 'Verificar Pago y Activar Minador';
+  const inp = document.getElementById('mpOperationInput');
+  if (inp) inp.focus();
   initPayPalHostedButton();
-});
+}
+window.openCheckoutModal = openCheckoutModal;
+
+if (openCheckoutBtn) {
+  openCheckoutBtn.addEventListener('click', openCheckoutModal);
+}
 
 closeCheckoutBtn.addEventListener('click', () => {
   checkoutModal.classList.remove('active');

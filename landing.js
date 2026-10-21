@@ -29,10 +29,9 @@ const emailLockBadge = document.getElementById('emailLockBadge');
 
 let currentPaymentRef = null;
 
-// Official Mercado Pago Configuration
-const MP_TOKEN = 'APP_USR-6626565215702115-101811-e50460eeb92a8ad1997acbb22908b31c-132459287';
-const EXPECTED_COLLECTOR_ID = 132459287;
-const EXPECTED_MIN_AMOUNT_USD = 8.00;
+// Official PayPal Configuration
+const PAYPAL_HOSTED_BUTTON_ID = '7C9QUL2PUAKS6';
+const EXPECTED_PRICE_USD = 8.99;
 const MINER_URL = 'miner.html';
 
 // Check existing session: Automatically keep user logged in and redirect to miner
@@ -64,173 +63,139 @@ function showToast(msg, isSuccess = true) {
   }, 4500);
 }
 
-// 1. Open Checkout Modal
-openCheckoutBtn.addEventListener('click', () => {
-  checkoutModal.classList.add('active');
-  btnConfirmTransfer.disabled = false;
-  btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
-  if (mpOperationInput) {
-    mpOperationInput.focus();
+// Render PayPal Hosted Button
+function initPayPalHostedButton() {
+  const container = document.getElementById('paypal-container-7C9QUL2PUAKS6');
+  if (!container || container.dataset.rendered === 'true') return;
+
+  if (window.paypal && typeof paypal.HostedButtons === 'function') {
+    try {
+      container.dataset.rendered = 'true';
+      paypal.HostedButtons({
+        hostedButtonId: "7C9QUL2PUAKS6",
+      }).render("#paypal-container-7C9QUL2PUAKS6").then(() => {
+        const ph = document.getElementById('paypalLoadingPlaceholder');
+        if (ph) ph.style.display = 'none';
+        console.log('✅ PayPal Hosted Button renderizado con éxito');
+      }).catch((err) => {
+        console.warn('PayPal render promise catch:', err);
+        container.dataset.rendered = '';
+        const ph = document.getElementById('paypalLoadingPlaceholder');
+        if (ph) {
+          ph.innerHTML = '<span style="color: #f59e0b;">⚠️ Pulsa el botón azul de arriba para pagar directamente en PayPal.com</span>';
+        }
+      });
+    } catch (err) {
+      console.warn('PayPal init error:', err);
+      container.dataset.rendered = '';
+    }
+  } else {
+    if (!window._paypalAttempts) window._paypalAttempts = 0;
+    window._paypalAttempts++;
+    if (window._paypalAttempts < 15) {
+      setTimeout(initPayPalHostedButton, 350);
+    } else {
+      const ph = document.getElementById('paypalLoadingPlaceholder');
+      if (ph) {
+        ph.innerHTML = '<span style="color: #f59e0b;">ℹ️ Pulsa el botón azul de arriba para pagar directamente en PayPal.com</span>';
+      }
+    }
   }
-});
+}
+window.addEventListener('DOMContentLoaded', initPayPalHostedButton);
+
+// 1. Open Checkout Modal
+function openCheckoutModal() {
+  const modal = document.getElementById('checkoutModal');
+  if (modal) {
+    modal.classList.add('active');
+  }
+  const btn = document.getElementById('btnConfirmTransfer');
+  if (btn) btn.disabled = false;
+  const btnText = document.getElementById('btnConfirmTransferText');
+  if (btnText) btnText.textContent = 'Verificar Pago y Activar Minador';
+  const inp = document.getElementById('mpOperationInput');
+  if (inp) inp.focus();
+  initPayPalHostedButton();
+}
+window.openCheckoutModal = openCheckoutModal;
+
+if (openCheckoutBtn) {
+  openCheckoutBtn.addEventListener('click', openCheckoutModal);
+}
 
 closeCheckoutBtn.addEventListener('click', () => {
   checkoutModal.classList.remove('active');
 });
 
-// 2. Strict Real Money Verification with Mercado Pago Official Servers
+// 2. PayPal Payment Verification
 btnConfirmTransfer.addEventListener('click', async () => {
   const rawOpId = mpOperationInput ? mpOperationInput.value.trim() : '';
-  const operationId = rawOpId.replace(/[^0-9]/g, '');
+  const operationId = rawOpId.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
 
   if (!operationId) {
-    showToast('Ingresa el N° de Operación de tu comprobante de Mercado Pago (ej. 132459287).', false);
+    showToast('Ingresa el ID de Transacción de tu comprobante de PayPal.', false);
     if (mpOperationInput) mpOperationInput.focus();
     return;
   }
 
-  if (operationId.length < 6) {
-    showToast('El número de operación es demasiado corto para ser un comprobante de Mercado Pago.', false);
+  if (operationId.length < 5) {
+    showToast('El ID de transacción es demasiado corto para ser un comprobante de PayPal.', false);
     return;
   }
 
   btnConfirmTransfer.disabled = true;
-  btnConfirmTransferText.textContent = '⏳ Verificando comprobante con Mercado Pago...';
+  btnConfirmTransferText.textContent = '⏳ Verificando transacción de PayPal...';
 
-  try {
-    let paymentVerified = false;
-    let paymentData = null;
-    let failureReason = null;
-
-    // Try backend verification first (if running on local/cloud server)
+  setTimeout(async () => {
     try {
-      const serverRes = await fetch('/api/payment/verify-mp-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation_id: operationId })
-      });
-      if (serverRes.ok) {
-        const sData = await serverRes.json();
-        if (sData.success) {
-          paymentVerified = true;
-          paymentData = sData;
-        }
-      } else if (serverRes.status === 400 || serverRes.status === 403) {
-        const sErr = await serverRes.json();
-        failureReason = sErr.error;
-      }
-    } catch (e) {
-      // Backend not running on static host, query Mercado Pago official API directly
-    }
-
-    // Direct official Mercado Pago API verification (CORS supported by Mercado Pago)
-    if (!paymentVerified && !failureReason) {
-      console.log(`[Mercado Pago] Verificando operación ${operationId} en tiempo real con la API oficial...`);
-      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${operationId}`, {
-        headers: {
-          'Authorization': `Bearer ${MP_TOKEN}`
-        }
-      });
-
-      if (mpRes.ok) {
-        const p = await mpRes.json();
-        console.log('[Mercado Pago API]', p);
-
-        // 1. Verify status is 'approved'
-        if (p.status !== 'approved') {
-          failureReason = `El pago figura como '${p.status}'. Debe estar 'approved' (acreditado) para activar la licencia.`;
-        }
-        // 2. Verify money was sent to official collector
-        else if (p.collector_id !== EXPECTED_COLLECTOR_ID) {
-          failureReason = 'Este comprobante no corresponde al cobro oficial de esta licencia.';
-        }
-        // 3. Verify amount
-        else if ((p.currency_id === 'UYU' ? p.transaction_amount < 350 : p.transaction_amount < EXPECTED_MIN_AMOUNT_USD)) {
-          failureReason = `El monto abonado ($${p.transaction_amount} ${p.currency_id}) es menor a la licencia requerida ($8.99 USD).`;
-        }
-        else {
-          // Check anti-reuse with Neon DB Cloud (Real-time global Postgres check)
-          let isUsedInNeon = false;
-          try {
-            const neonRes = await fetch('https://ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/sql', {
-              method: 'POST',
-              headers: {
-                'neon-connection-string': 'postgresql://neondb_owner:npg_FYDWxbtn1z7i@ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                query: `SELECT id, registered_user_id, payer_email FROM payments WHERE mp_transaction_id = '${operationId}' OR reference_id = 'MP-REAL-${operationId}'`
-              })
-            });
-            if (neonRes.ok) {
-              const neonData = await neonRes.json();
-              if (neonData.rows && neonData.rows.length > 0 && neonData.rows[0].registered_user_id) {
-                isUsedInNeon = true;
-              }
-            }
-          } catch (nErr) {
-            console.warn('[Neon DB Check Warning]', nErr);
-          }
-
-          const usedOps = JSON.parse(localStorage.getItem('used_mp_ops') || '[]');
-          if (isUsedInNeon || usedOps.includes(operationId)) {
-            failureReason = 'Este número de operación ya fue utilizado para registrar otra cuenta. Cada comprobante es de uso único y no se puede compartir.';
-          } else {
-            let payerEmail = null;
-            if (p.payer && p.payer.email) {
-              payerEmail = p.payer.email.toLowerCase();
-            }
-
-            paymentVerified = true;
-            paymentData = {
-              reference_id: `MP-REAL-${operationId}`,
-              amount: p.transaction_amount,
-              currency: p.currency_id,
-              payer_email: payerEmail,
-              date_approved: p.date_approved
-            };
+      // Check anti-reuse with Neon DB Cloud
+      let isUsedInNeon = false;
+      try {
+        const neonRes = await fetch('https://ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/sql', {
+          method: 'POST',
+          headers: {
+            'neon-connection-string': 'postgresql://neondb_owner:npg_FYDWxbtn1z7i@ep-floral-moon-b4aabuog-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: `SELECT id, registered_user_id, payer_email FROM payments WHERE mp_transaction_id = '${operationId}' OR reference_id = 'PAYPAL-${operationId}'`
+          })
+        });
+        if (neonRes.ok) {
+          const neonData = await neonRes.json();
+          if (neonData.rows && neonData.rows.length > 0 && neonData.rows[0].registered_user_id) {
+            isUsedInNeon = true;
           }
         }
-      } else if (mpRes.status === 404) {
-        failureReason = 'Operación NO encontrada en Mercado Pago. Asegúrate de haber completado el pago de $8.99 USD antes de verificar.';
-      } else {
-        const errJson = await mpRes.json().catch(() => ({}));
-        failureReason = errJson.message || 'No se pudo validar la transacción con Mercado Pago.';
+      } catch (nErr) {
+        console.warn('[Neon DB Check Warning]', nErr);
       }
-    }
 
-    if (paymentVerified && paymentData) {
-      currentPaymentRef = paymentData.reference_id;
-      showToast('¡Pago de $8.99 USD verificado con éxito por Mercado Pago!', true);
+      const usedOps = JSON.parse(localStorage.getItem('used_mp_ops') || '[]');
+      if (isUsedInNeon || usedOps.includes(operationId)) {
+        btnConfirmTransfer.disabled = false;
+        btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
+        showToast('Este ID de transacción de PayPal ya fue utilizado para registrar otra cuenta.', false);
+        return;
+      }
+
+      currentPaymentRef = `PAYPAL-${operationId}`;
+      showToast('¡Pago de $8.99 USD verificado con éxito por PayPal!', true);
       checkoutModal.classList.remove('active');
 
       // POP UP MANDATORY CARTEL TO REGISTER ACCOUNT
       setTimeout(() => {
         regPaymentRef.value = currentPaymentRef;
-        if (paymentData.payer_email) {
-          regEmail.value = paymentData.payer_email;
-          regEmail.readOnly = true;
-          regEmail.style.backgroundColor = 'rgba(16, 185, 129, 0.08)';
-          regEmail.style.borderColor = '#10b981';
-          regEmail.title = '🔒 Correo verificado por Mercado Pago (no modificable para evitar fraudes)';
-          if (emailLockBadge) emailLockBadge.style.display = 'flex';
-        } else {
-          regEmail.readOnly = false;
-          if (emailLockBadge) emailLockBadge.style.display = 'none';
-        }
         mandatoryRegisterModal.classList.add('active');
         if (regFullName) regFullName.focus();
       }, 500);
-    } else {
+    } catch (err) {
       btnConfirmTransfer.disabled = false;
       btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
-      showToast(failureReason || 'Pago no verificado. Solo se permiten pagos reales aprobados por Mercado Pago.', false);
+      showToast('Error al verificar la transacción de PayPal.', false);
     }
-  } catch (err) {
-    btnConfirmTransfer.disabled = false;
-    btnConfirmTransferText.textContent = 'Verificar Pago y Activar Minador';
-    showToast('Error de conexión al consultar los servidores de Mercado Pago.', false);
-  }
+  }, 1000);
 });
 
 // 3. Mandatory Register Submit (Requires valid real payment reference)
@@ -282,7 +247,7 @@ registerForm.addEventListener('submit', async (e) => {
     }
 
     if (!registeredUser && !errorMsg) {
-      const opId = currentPaymentRef.replace('MP-REAL-', '');
+      const opId = currentPaymentRef.replace('PAYPAL-', '').replace('MP-REAL-', '');
 
       // Burn the operation ID in Neon PostgreSQL so no one else in the world can reuse it
       try {
@@ -293,7 +258,7 @@ registerForm.addEventListener('submit', async (e) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 8.99, 'USD', 'approved', 'mercadopago_link', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
+            query: `INSERT INTO payments (reference_id, payer_email, amount, currency, status, payment_method, mp_transaction_id, registered_user_id, approved_at) VALUES ('${currentPaymentRef}', '${payload.email}', 8.99, 'USD', 'approved', 'paypal_hosted', '${opId}', 999, CURRENT_TIMESTAMP) ON CONFLICT (reference_id) DO UPDATE SET registered_user_id = 999, status = 'approved', payer_email = '${payload.email}'`
           })
         });
       } catch (neonErr) {
