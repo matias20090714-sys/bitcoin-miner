@@ -113,8 +113,8 @@ app.post('/api/payment/verify-paypal', async (req, res) => {
       });
     }
 
-    const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'BAAh4r22cUv0BRMrzK7qVPEWGk-IrnOGiHFygSa651lgz8biz-_otM8wMOpfaIRAoPMum7RK5amM0utatE';
-    const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+    const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'BAAyvGi1wl_tm9uOj9diYhmfALmt9_phMJWiR8D3AkInAhbTFL-o4tdsPMOSM3rg4LKthA1UnpkHYlRORk';
+    const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || 'EPBElmtZI1l70MZSNyCcGmGzRaTl_fh5zj-Jge9PuflS7BsC5Xhfa_Inp3PWkwfv7Cjyr_65UB3Ntb5m';
 
     let isApprovedByApi = false;
     let verifiedEmail = payer_email ? payer_email.toLowerCase() : null;
